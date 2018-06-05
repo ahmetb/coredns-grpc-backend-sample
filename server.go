@@ -32,6 +32,9 @@ func (d *dnsServer) Query(ctx context.Context, in *pb.DnsPacket) (*pb.DnsPacket,
 	if err := m.Unpack(in.Msg); err != nil {
 		return nil, fmt.Errorf("failed to unpack msg: %v", err)
 	}
+	m.Authoritative = true
+	m.Response = true
+
 	for _, q := range m.Question {
 		// TODO: query database and add answers here
 		hdr := dns.RR_Header{Name: q.Name,
@@ -55,7 +58,6 @@ func (d *dnsServer) Query(ctx context.Context, in *pb.DnsPacket) (*pb.DnsPacket,
 	if len(m.Answer) == 0 {
 		m.Rcode = dns.RcodeNameError
 	}
-	m.Response = true
 
 	out, err := m.Pack()
 	if err != nil {
