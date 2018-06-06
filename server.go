@@ -32,34 +32,28 @@ func (d *dnsServer) Query(ctx context.Context, in *pb.DnsPacket) (*pb.DnsPacket,
 	if err := m.Unpack(in.Msg); err != nil {
 		return nil, fmt.Errorf("failed to unpack msg: %v", err)
 	}
-	m.Authoritative = true
-	m.Response = true
+	r := new(dns.Msg)
+	r.SetReply(m)
+	r.Authoritative = true
 
-	for _, q := range m.Question {
-		// TODO: query database and add answers here
-		hdr := dns.RR_Header{Name: q.Name,
-			Rrtype: q.Qtype,
-			Class:  q.Qclass}
-
+	// TODO: query a database and provide real answers here!
+	for _, q := range r.Question {
+		hdr := dns.RR_Header{Name: q.Name, Rrtype: q.Qtype, Class: q.Qclass}
 		switch q.Qtype {
 		case dns.TypeA:
-			m.Answer = append(m.Answer, &dns.A{
-				Hdr: hdr,
-				A:   net.IPv4(127, 0, 0, 1)}) // TODO use a real IP
+			r.Answer = append(r.Answer, &dns.A{Hdr: hdr, A: net.IPv4(127, 0, 0, 1)})
 		case dns.TypeAAAA:
-			m.Answer = append(m.Answer, &dns.AAAA{
-				Hdr:  hdr,
-				AAAA: net.IPv6loopback})
+			r.Answer = append(r.Answer, &dns.AAAA{Hdr: hdr, AAAA: net.IPv6loopback})
 		default:
 			return nil, fmt.Errorf("only A/AAAA supported, got qtype=%d", q.Qtype)
 		}
 	}
 
-	if len(m.Answer) == 0 {
-		m.Rcode = dns.RcodeNameError
+	if len(r.Answer) == 0 {
+		r.Rcode = dns.RcodeNameError
 	}
 
-	out, err := m.Pack()
+	out, err := r.Pack()
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack msg: %v", err)
 	}
